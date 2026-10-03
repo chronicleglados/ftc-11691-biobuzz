@@ -1,20 +1,18 @@
 package org.firstinspires.ftc.teamcode.hardware;
 
 import com.qualcomm.hardware.limelightvision.LLResult;
+import com.qualcomm.hardware.limelightvision.LLResultTypes;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
-import com.qualcomm.robotcore.hardware.IMU;
 
 import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
 import org.firstinspires.ftc.teamcode.RobotHardwareMap;
-import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 
 import java.util.List;
 
 public class camera {
     RobotHardwareMap robotHardwareMap;
-
 
     LinearOpMode opMode;
 
@@ -22,14 +20,10 @@ public class camera {
     private int goalColor;// 0 is 20 blue , 1 is 24 red
     private LLResult llResult ;
 
-    // finish the init method
-
     public camera(RobotHardwareMap robotHardwareMap, LinearOpMode opMode) {
         this.opMode = opMode;
         this.robotHardwareMap = robotHardwareMap;
         limelight = robotHardwareMap.baseHMap.get(Limelight3A.class, "limelight");
-        limelight.pipelineSwitch(0); // 0 is 20, 1 is 24
-        goalColor = 0;
     }
 
     public void start(){
@@ -37,15 +31,32 @@ public class camera {
     }
 
     public void loop(){
+
         YawPitchRollAngles orentation = robotHardwareMap.chImu.getRobotYawPitchRollAngles();
         limelight.updateRobotOrientation(orentation.getYaw());
         llResult = limelight.getLatestResult();
 
-        if (goalColor == 0) {
-            opMode.telemetry.addLine("Goal Color Blue");
-        }
-        else {
-            opMode.telemetry.addLine("Goal Color Red");
+        // Print every visible AprilTag ID
+        if (llResult != null) {
+            List<LLResultTypes.FiducialResult> tags = llResult.getFiducialResults();
+
+            if (tags == null || tags.isEmpty()) {
+                opMode.telemetry.addData("Visible Tags", "none");
+                //opMode.telemetry.addData("thing",llResult.getStaleness(),llResult.getPipelineIndex(), llResult.getFiducialResults());
+
+            } else {
+                StringBuilder ids = new StringBuilder();
+                for (LLResultTypes.FiducialResult tag : tags) {
+                    if (ids.length() > 0) {
+                        ids.append(", ");
+                    }
+                    ids.append(tag.getFiducialId());
+                }
+                opMode.telemetry.addData("Visible Tags", ids.toString());
+                opMode.telemetry.addData("Tag Count", tags.size());
+            }
+        } else {
+            opMode.telemetry.addData("Visible Tags", "no result");
         }
 
         if ((llResult != null) && llResult.isValid()){
@@ -66,20 +77,16 @@ public class camera {
                 powerFactor = 35;
             }
             twistout= (llResult.getTx() / powerFactor) ;
-            //         = twistin;  if you want to conser input from the stick add twist in here
-            // value of 180 is rough estimate on the width of the camera at max distance it can pick up april tag(inches)
-
         }
         return twistout;
     }
-    // y is power
-    // p is area
+
     public double outtakespeedfordistance(double powerin) {
         double power = powerin;
-        double y2 = 1.0; // april tag area closes point from april tag
-        double y1 = 0.5; // april tag area furthest point to april tag
-        double p2 = 900;  // power cloest point from april tag
-        double p1 = 960; // power  furthest point to april tag
+        double y2 = 1.0;
+        double y1 = 0.5;
+        double p2 = 900;
+        double p1 = 960;
         double m = (p2 - p1) / (y2 - y1);
         double b = (p2 - (m * y2));
         if ((llResult != null) && llResult.isValid()){
@@ -89,13 +96,8 @@ public class camera {
         return power;
     }
 
-
     public void goalcolor (int goalColorIn) {
         goalColor = goalColorIn;
         limelight.pipelineSwitch(goalColor); // 0 is 20 blue, 1 is 24 red
-
-
     }
-
 }
-
